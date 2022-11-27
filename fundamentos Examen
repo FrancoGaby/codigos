@@ -1,0 +1,399 @@
+//libreria del teclado
+#include <Keypad.h>
+//libreria del lcd 16x2
+#include <LiquidCrystal.h>
+// constantes del lcd
+#define RS 13
+#define E  12
+#define D4 11
+#define D5 10
+#define D6 9
+#define D7 8
+#define brillo A0
+float brilloval;
+//inicializo el lcd
+LiquidCrystal lcd (RS, E, D4, D5, D6, D7);
+//variables del buzzer pasivo
+#define buzzer A1
+#define buzzDelay 1100
+#define buzzDelay2 700
+//variable del potenciometro
+#define pot A2
+float  potval;
+
+//variables del teclado 4x4
+const byte filas = 4;
+const byte columnas = 4;
+byte pinsFilas[filas] = {A5, A4, 2, 3};
+byte pinsColumnas[columnas] = {4, 5, 6, 7};
+
+char teclas[filas][columnas] = {{'1', '2', '3', '+'}, {'4', '5', '6', '-'}, {'7', '8', '9', '*'}, {'.', '0', '#', '/'}};
+//inicializo el teclado y creo la variable goblal "tecla" que servira para obtener los datos que se presionen en el teclado
+Keypad teclado = Keypad(makeKeymap(teclas), pinsFilas, pinsColumnas, filas, columnas);
+char tecla = '-';
+void setup()
+{
+  //Pongo el contraste de la pantalla lcd en 50 para que se vea correctamente
+  analogWrite(brillo, 55);
+  pinMode(pot,INPUT);
+  //marco que el lcd es un 16x2
+  lcd.begin(16, 2);
+  //iniciaizo el Monitor en Serie solo para realizar pruebas
+  Serial.begin(9600);
+}
+
+void loop()
+{
+  //creo las variables  string  que guardaran los datos ingresados del teclado
+  String num[7];
+  String numTotal;
+  String numTotal2;
+  // variables para pasar esos datos de string a tipo double (con coma)
+  double numero1;
+  char operador;
+  double numero2;
+  double resultado;
+  //variables de utilidad en la funcion
+  short dt = 2000;
+  short i = 0;
+
+  //muestro el menu por el lcd
+  menu();
+  sonidoMenu();
+  do
+  {
+      delay(1500);
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Presione tecla");
+      lcd.setCursor(0, 1);
+      lcd.print("Para continuar");
+      delay(500);
+      menu();
+    //queda esperando que el usuario presione una tecla
+    esperarTecla();
+    sonido();
+  } while (tecla == NO_KEY);
+  //muestro por lcd que ingrese el primer numero
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ingresar numero1");
+  lcd.setCursor(0, 1);
+  i = 0;
+  do
+  {
+    //espero la tecla
+    esperarTecla();
+    sonido();
+    /*si la tecla es distinta de # y i < 5, ya que solo quiero aceptar como maximo un numero de 5 letras, contando el punto
+    Basicamente este if filtra las teclas ingresadas correctamente como numero, contando el punto*/
+    if ((tecla != '#' && i < 6) && tecla != '+' && tecla != '-' && tecla != '/' && tecla != '*')
+    { 
+      //al vector le asigno el numero ingresado
+      num[i] = tecla;
+      //luego al string "numTotal" le asigno la acumulacion de cada letra ingresada, al final de todo si el usuario ingreso 1,2,3
+      // en numTotal se encontra el string 123
+      numTotal = numTotal +  num[i];
+      lcd.print(num[i]);
+      /*paso  ,como ejemplo ,el 123 a numerico flotante asignandolo a la variable numero1, y apartir de este momento ya se
+      pueden hacer operaciones mametaticas*/
+      numero1 = numTotal.toFloat();
+      //incremento el contador ya que se ingreso un numero correctamente
+      i++;
+    }
+    // si es distinta de # se le informa que la tecla ingresada es incorrecta, ya que si te pide un numero no se puede
+    //ingresar un operador, el que si es valido es el # ya que es el enter
+    else if ( tecla != '#')
+    {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Tecla Incorrecta");
+      sonidoalarma();
+      delay(dt);
+      lcd.clear();
+      do
+      {
+        lcd.setCursor(0, 0);
+        lcd.print("Presione |#|");
+        lcd.setCursor(0, 1);
+        lcd.print("para continuar");
+        esperarTecla();
+        if(tecla != '#')
+        {
+          sonidoalarma();
+        }
+      } while (tecla != '#');
+      //informo nuevamente que ingrese el numero1
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Ingresar numero1");
+      lcd.setCursor(0, 1);
+      //pongo el contador en 0 para que todo se realize desde el principio
+      i=0;
+      //le asigno un valor cualquiera a la tecla porque se queda con el valor # , y si lo dejo
+      //con ese valor se terminaria el while de abajo
+      tecla = '0';
+      //pongo la variable en NULL asi no se acumulan los valores
+      numTotal= '\0';
+    }
+  } while ((tecla != '#' && i <6)); /* la condicion de corte es si se ingresa un # ,que es el enter ,o si se pasa
+  del limite de numeros, en este caso 5*/
+
+  //para saber por medio del monitor serial si esta todo correcto
+  Serial.println(numero1);
+  //ahora se procede a pedir por pantalla que se ingrese un operador matematico
+  // + / - * 
+  do
+  {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Ingrese Operador");
+    lcd.setCursor(0, 1);
+    lcd.print(numero1);
+    //espero la tecla
+    esperarTecla();
+    sonido();
+    // le asigno a operador el valor de tecla
+    operador = tecla;
+    // muestro por el lcd el operador ingresado
+    lcd.print( operador );
+    //if que filtra si los valores de operador son incorrectos, por ejemplo si se ingresa un numero del 0 al 9
+    if (operador != '+' &&  operador != '-' && operador != '*' && operador != '/')
+    {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Tecla Incorrecta");
+      sonidoalarma();
+      delay(dt);
+    }
+  } while (operador != '+' &&  operador != '-' && operador != '*' && operador != '/');
+  //la condicion de corte es que se ingrese bien un operador, mientras se ingrese cualquier otra cosa estara en bucle
+
+  // dejo en 0 el contador para volver a usarlo y asi pedir por la pantalla lcd que ingrese el numero 2
+  i = 0;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ingresar numero2");
+  lcd.setCursor(0, 1);
+  //muestro el numero 1 y el operador ingresado actualmente
+  lcd.print(numero1);
+  lcd.print( operador );
+  do
+  {
+    //espero la tecla
+    esperarTecla();
+    sonido();
+    //el mismo filtro y acciones que se uso para pedir el numero1
+    if ((tecla != '#' && i < 6) && tecla != '+' && tecla != '-' && tecla != '*' && tecla != '/' && tecla != '*')
+    {
+      num[i] = tecla;
+      numTotal2 = numTotal2 +  num[i];
+      lcd.print(tecla);
+      numero2 = numTotal2.toFloat();
+      i++;
+    }
+    //else if para informar que la tecla ingresada fue incorrecta
+    else if ( tecla != '#')
+    {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Tecla Incorrecta");
+      sonidoalarma();
+      delay(dt);
+      lcd.clear();
+      //do while para que presione # para continuar
+      do
+      {
+        lcd.setCursor(0, 0);
+        lcd.print("Presione |#|");
+        lcd.setCursor(0, 1);
+        lcd.print("para continuar");
+        //espera la tecla
+        esperarTecla();
+        if(tecla!='#')
+        {
+          sonidoalarma();
+        }
+        else
+        sonido();
+      } while (tecla != '#'); // condicion de corte
+      //borra la pantalla y pide que se ingrese el numero 2 devuelta
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Ingresar numero2");
+      lcd.setCursor(0, 1);
+      //aca solo se vuelve a informar cual era el numero 1 y el operador ingresados previamente
+      lcd.print(numero1);
+      lcd.print( operador );
+      //pongo el contador en 0 para que todo se realize desde el principio
+      i = 0;
+      //le asigno un valor cualquiera a la tecla porque se queda con el valor # , y si lo dejo
+      //con ese valor se terminaria el while de abajo
+      tecla = '0';
+    }
+  } while ((tecla != '#' && i < 6));// condicion de corte mientras no se ingrese un enter y que el numero sea menor a 5 digitos
+
+  //para mostrar por el monitor serie
+  Serial.println(numero2);
+  //borro la pantalla y procedo a realizar un switch con los diferentes valores del operador ingresado 
+  lcd.clear();
+  switch (operador)
+  {
+    case '+' : // si es un + procedo a realizar la suma de ambos numeros
+      resultado = numero1 + numero2;
+      lcd.setCursor(0, 0);
+      lcd.print(numero1);
+      lcd.print(operador);
+      lcd.print(numero2);
+      lcd.print( " =" );
+      lcd.setCursor(0, 1);
+      lcd.print(resultado);
+      break;
+
+    case '-' : // si es un - proceso a realizar la resta de ambos numeros
+      resultado = numero1 - numero2;
+      lcd.setCursor(0, 0);
+      lcd.print(numero1);
+      lcd.print(operador);
+      lcd.print(numero2);
+      lcd.print( " =" );
+      lcd.setCursor(0, 1);
+      lcd.print(resultado);
+      break;
+
+    case '*' :// si es un * proceso a realizar la multiplicacion de ambos numeros
+      resultado = numero1 * numero2;
+      lcd.setCursor(0, 0);
+      lcd.print(numero1);
+      lcd.print(operador);
+      lcd.print(numero2);
+      lcd.print( " =" );
+      lcd.setCursor(0, 1);
+      lcd.print(resultado);
+      break;
+
+    case '/' :// si es un - proceso a realizar la division de ambos numeros
+      if (numero2 != 0)// si el numero 2 es distinto a 0 hago la cuenta y la muestro tranquilamente en el lcd
+      {
+        resultado = numero1 / numero2;
+        lcd.setCursor(0, 0);
+        lcd.print(numero1);
+        lcd.print(operador);
+        lcd.print(numero2);
+        lcd.print( " =" );
+        lcd.setCursor(0, 1);
+        lcd.print(resultado);
+      }
+      else // si el segundo numero es 0 informo por pantalla que no se puede hacer una division entre 0
+      {
+        lcd.setCursor(0, 0);
+        lcd.print(" No se puede ");
+        lcd.setCursor(0, 1);
+        lcd.print("Dividir Entre 0");
+        sonidoalarma();
+      }
+      break;
+  }
+  //espero un tiempo , borro la pantalla y informo que presione un tecla para continuar
+  delay(dt * 2);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Apretar tecla");
+  lcd.setCursor(0, 1);
+  lcd.print("Para continuar");
+  delay(dt);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(numero1);
+  lcd.print(operador);
+  lcd.print(numero2);
+  lcd.print( " =" );
+  lcd.setCursor(0, 1);
+  lcd.print(resultado);
+  esperarTecla();
+  lcd.clear();
+}
+
+/*trabaja con la variable goblal "tecla", la funcion se encarga de
+  estar en un bucle infinito hasta que el usuario toque alguna tecla*/
+void esperarTecla()
+{
+  do
+  { //funcion de la libreria keypad, permite leer lo que se esta apretando
+    tecla = teclado.getKey();
+    //para regular el brillo de la pantalla siempre
+    brilloLED();
+  } while (tecla == NO_KEY); /*mientras que lo que se este apretando sea "NO_KEY", es decir nada, seguira en bucle
+    hasta conseguir un resultado distinto */
+}
+
+void brilloLED()
+{  
+  //lee los valores del potenciometre 1023 todo a la izquierda y 0 a la derecha
+  potval = analogRead(pot);
+  //mapea los valores en base al valor de potval (valor 1023-0) a
+  // un valor para la pantalla entre 255 y 0
+  brilloval = map(potval,1023,0,255,0);
+  analogWrite(brillo,brilloval);
+}
+//funcion estetica para mostrar por la pantalla lcd el menu de la calculadora
+void menu()
+{
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(">>Calculadora<<");
+  lcd.setCursor(0, 1);
+  lcd.print("  A|+ B|- C|* D|/");
+}
+void sonido()
+{
+  for(int i = 0; i <80;i++)
+  {
+    analogWrite(buzzer,255);
+    delayMicroseconds(buzzDelay);
+    analogWrite(buzzer,0);
+    delayMicroseconds(buzzDelay);  
+  }
+}
+void sonidoalarma()
+{
+  for(int i =0; i< 100; i++)
+  { 
+    analogWrite(buzzer,255);
+    delayMicroseconds(buzzDelay2);
+    analogWrite(buzzer,0);
+    delayMicroseconds(buzzDelay2);
+  }
+}
+void sonidoMenu()
+{ 
+   for(int i =0; i< 70; i++)
+  {
+    analogWrite(buzzer,255);
+    delayMicroseconds(buzzDelay);
+    analogWrite(buzzer,0);
+    delayMicroseconds(buzzDelay);
+  }
+  for(int i =0; i< 70; i++)
+  {
+    analogWrite(buzzer,255);
+    delayMicroseconds(buzzDelay2);
+    analogWrite(buzzer,0);
+    delayMicroseconds(buzzDelay2);
+  }
+  delay(3);
+   for(int i =0; i< 70; i++)
+  {
+    analogWrite(buzzer,255);
+    delayMicroseconds(buzzDelay);
+    analogWrite(buzzer,0);
+    delayMicroseconds(buzzDelay);
+  }
+  for(int i =0; i< 70; i++)
+  {
+    analogWrite(buzzer,255);
+    delayMicroseconds(buzzDelay2);
+    analogWrite(buzzer,0);
+    delayMicroseconds(buzzDelay2);
+  }    
+}
