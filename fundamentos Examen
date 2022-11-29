@@ -60,20 +60,17 @@ void loop()
   //muestro el menu por el lcd
   menu();
   sonidoMenu();
-  do
-  {
-      delay(1500);
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Presione tecla");
-      lcd.setCursor(0, 1);
-      lcd.print("Para continuar");
-      delay(500);
-      menu();
-    //queda esperando que el usuario presione una tecla
-    esperarTecla();
-    sonido();
-  } while (tecla == NO_KEY);
+  delay(1500);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Presione tecla");
+  lcd.setCursor(0, 1);
+  lcd.print("Para continuar");
+  delay(500);
+  menu();
+  //queda esperando que el usuario presione una tecla
+  esperarTecla();
+  sonido();
   //muestro por lcd que ingrese el primer numero
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -85,9 +82,9 @@ void loop()
     //espero la tecla
     esperarTecla();
     sonido();
-    /*si la tecla es distinta de # y i < 5, ya que solo quiero aceptar como maximo un numero de 5 letras, contando el punto
+    /*si la tecla es distinta de # y i < 6, ya que solo quiero aceptar como maximo un numero de 6 digitos, contando el punto
     Basicamente este if filtra las teclas ingresadas correctamente como numero, contando el punto*/
-    if ((tecla != '#' && i < 6) && tecla != '+' && tecla != '-' && tecla != '/' && tecla != '*')
+    if ((tecla != '#' && i < 6) && tecla != '+' && tecla != '/' && tecla != '*')
     { 
       //al vector le asigno el numero ingresado
       num[i] = tecla;
@@ -122,6 +119,8 @@ void loop()
         {
           sonidoalarma();
         }
+        else
+          sonido();
       } while (tecla != '#');
       //informo nuevamente que ingrese el numero1
       lcd.clear();
@@ -137,7 +136,7 @@ void loop()
       numTotal= '\0';
     }
   } while ((tecla != '#' && i <6)); /* la condicion de corte es si se ingresa un # ,que es el enter ,o si se pasa
-  del limite de numeros, en este caso 5*/
+  del limite de numeros, en este caso 6*/
 
   //para saber por medio del monitor serial si esta todo correcto
   Serial.println(numero1);
@@ -184,7 +183,7 @@ void loop()
     esperarTecla();
     sonido();
     //el mismo filtro y acciones que se uso para pedir el numero1
-    if ((tecla != '#' && i < 6) && tecla != '+' && tecla != '-' && tecla != '*' && tecla != '/' && tecla != '*')
+    if ((tecla != '#' && i < 6) && tecla != '*' && tecla != '/' && tecla != '*'&& tecla != '+')
     {
       num[i] = tecla;
       numTotal2 = numTotal2 +  num[i];
@@ -215,7 +214,10 @@ void loop()
           sonidoalarma();
         }
         else
-        sonido();
+        {
+          
+        	sonido();
+        }
       } while (tecla != '#'); // condicion de corte
       //borra la pantalla y pide que se ingrese el numero 2 devuelta
       lcd.clear();
@@ -230,8 +232,9 @@ void loop()
       //le asigno un valor cualquiera a la tecla porque se queda con el valor # , y si lo dejo
       //con ese valor se terminaria el while de abajo
       tecla = '0';
+      numTotal2 = '\n';
     }
-  } while ((tecla != '#' && i < 6));// condicion de corte mientras no se ingrese un enter y que el numero sea menor a 5 digitos
+  } while ((tecla != '#' && i < 6));// condicion de corte mientras no se ingrese un enter y que el numero sea menor a 6 digitos
 
   //para mostrar por el monitor serie
   Serial.println(numero2);
@@ -295,7 +298,7 @@ void loop()
       break;
   }
   //espero un tiempo , borro la pantalla y informo que presione un tecla para continuar
-  delay(dt * 2);
+  delay(dt);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Apretar tecla");
@@ -343,7 +346,7 @@ void menu()
   lcd.setCursor(0, 0);
   lcd.print(">>Calculadora<<");
   lcd.setCursor(0, 1);
-  lcd.print("  A|+ B|- C|* D|/");
+  lcd.print(" A|+ B|- C|* D|/");
 }
 void sonido()
 {
